@@ -591,19 +591,6 @@ class PowerSystemModel:
                 elif i == 5:  # DO THIS FOR BATTERY ONLY
                     mdl.active = np.ones(len(data), dtype=bool)
 
-                    """
-                    # Appended for knowing which generators one are taking the input from 
-                    mdl.gen_idx_1 = dict()
-                    mdl.gen_idx_2 = dict() # IF WIDE AREA MEASUREMENTS ARE USED 
-                    for gen_key in self.gen.keys():
-                        lookup, mask = dps_uf.lookup_strings(data['gen'], self.gen[gen_key]['name'], return_mask=True)
-                        if len(lookup) > 0:
-                            mdl.gen_idx_1[gen_key] = [mask, lookup]
-                        lookup, mask = dps_uf.lookup_strings(data['gen2'], self.gen[gen_key]['name'], return_mask=True)
-                        if len(lookup) > 0:
-                            mdl.gen_idx_2[gen_key] = [mask, lookup]
-                    """
-
                     # Getting correct bus indexes for enabling efficient calculation of power flow
                     buses = []
                     buses_to_keep = data['bus']
@@ -638,8 +625,6 @@ class PowerSystemModel:
                         lookup, mask = dps_uf.lookup_strings(data['bat'], self.bat[bat_key]['name'], return_mask=True)
                         if len(lookup) > 0:
                             mdl.bat_idx[bat_key] = [mask, lookup]
-
-                    mdl.int_par['R'] = mdl.par['R']
 
 
                 else:  # Do this for control models only
@@ -760,7 +745,11 @@ class PowerSystemModel:
         # BATTERY CONTROL
         for key, dm in self.bat_ctrl_mdls.items():
             if hasattr(dm, 'initialize'):
-                pass
+                dm.initialize(
+                    self.x0[dm.idx].view(dtype=dm.dtypes),
+                    dm.input, dm.output, dm.par, dm.int_par)
+                if 'delta_0' in dm.int_par.dtype.names:
+                    dm.int_par['delta_0'] = self.x0[13]-self.x0[1]
 
         # PSS
         for key, dm in self.pss_mdls.items():
@@ -800,13 +789,19 @@ class PowerSystemModel:
             for gen_key, (mask, idx) in dm.gen_idx_1.items(): # SAME GENERATORS THAT THE BATTERY ARE USING INPUT SIGNAL FROM
                 gen_mdl = self.gen_mdls[gen_key]
                 x_loc = x[gen_mdl.idx]
-                dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+                if 'speed_dev' in dm.input.dtype.names:
+                    dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
+                elif 'angle_dev' in dm.input.dtype.names:
+                    dm.input['angle_dev'][mask] = -x_loc[gen_mdl.state_idx['angle'][idx]]
 
             if bool(dm.gen_idx_2):
                 for gen_key, (mask, idx) in dm.gen_idx_2.items():  # SAME GENERATORS THAT THE BATTERY ARE USING INPUT SIGNAL FROM
                     gen_mdl = self.gen_mdls[gen_key]
                     x_loc = x[gen_mdl.idx]
-                    dm.input['speed_dev'][mask] += x_loc[gen_mdl.state_idx['speed'][idx]]
+                    if 'speed_dev' in dm.input.dtype.names:
+                        dm.input['speed_dev'][mask] += x_loc[gen_mdl.state_idx['speed'][idx]]
+                    elif 'angle_dev' in dm.input.dtype.names:
+                        dm.input['angle_dev'][mask] += x_loc[gen_mdl.state_idx['angle'][idx]]
 
             dm.update(
                 dx[dm.idx].view(dtype=dm.dtypes),
@@ -832,29 +827,6 @@ class PowerSystemModel:
                 x[dm.idx].view(dtype=dm.dtypes),
                 dm.input, dm.output, dm.par, dm.int_par)
         # END BATTERY
-
-        # TESTING TESTING
-        """# Interfacing models  with system (current injections)
-        self.i_inj_d = np.zeros(self.n_bus_red, dtype=complex)
-        self.i_inj_q = np.zeros(self.n_bus_red, dtype=complex)
-        for key, dm in self.gen_mdls.items():
-            I_n = dm.par['S_n'] / (np.sqrt(3) * dm.par['V_n'])
-            i_inj_d_mdl, i_inj_q_mdl = dm.current_injections(
-                x[dm.idx].view(dtype=dm.dtypes),
-                dm.par)*I_n/self.i_n[dm.bus_idx]
-            np.add.at(self.i_inj_d, dm.bus_idx_red, i_inj_d_mdl)
-            np.add.at(self.i_inj_q, dm.bus_idx_red, i_inj_q_mdl)
-
-        # NEW BATTERY
-        for key, dm in self.bat_mdls.items():
-            i_inj_d_mdl, i_inj_q_mdl = dm.current_injections(dm.int_par)
-            np.add.at(self.i_inj_d, dm.bus_idx_red, i_inj_d_mdl)
-            np.add.at(self.i_inj_q, dm.bus_idx_red, i_inj_q_mdl)
-
-        self.i_inj = self.i_inj_d + self.i_inj_q
-        self.v_red = sp_linalg.spsolve(self.y_bus_red + self.y_bus_red_mod, self.i_inj)
-        self.v_g = self.v_red[self.gen_bus_idx_red]
-        # END TESTING TESTING """
 
         # GOV
         for key, dm in self.gov_mdls.items():

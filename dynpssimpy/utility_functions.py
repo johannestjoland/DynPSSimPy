@@ -108,7 +108,6 @@ def jacobian_num(f, x, eps=1e-10, **params):
         f2 = f(x2, **params)
 
         J[:, i] = (f1 - f2) / (2 * eps)
-
     return J
 
 

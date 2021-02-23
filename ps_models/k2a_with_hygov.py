@@ -141,9 +141,13 @@ def load():
             ]
         },
         'bat_ctrl': {
-            'P_CTRL_SPEED_LOCAL': [
-                ['name', 'input', 'gen', 'gen2',  'bat', 'R'],
-                ['BAT_CTRL_1', 'speed', 'G3', 'G1',  'BAT1', 0.0001],
+            #'P_CTRL_SPEED_LOCAL': [
+            #    ['name', 'input', 'gen', 'gen2',  'bat', 'R'],
+            #    ['BAT_CTRL_1', 'speed', 'G3', 'G1',  'BAT1', 0.0001],
+            #]
+            'WASH_LEAD_LAG': [
+                ['name',            'input', 'gen', 'gen2',  'bat', 'K', 'T', 'T_1', 'T_2',  'T_3', 'T_4', 'H_lim'],
+                ['BAT_CTRL_WASH_1', 'angle',  'G3', 'G1', 'BAT1',  50,  10,  0.8,  0.8,   0.13,   0.13,     0.9],
             ]
         }
     }
