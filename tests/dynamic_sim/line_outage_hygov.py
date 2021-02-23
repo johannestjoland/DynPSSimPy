@@ -7,6 +7,7 @@ import importlib
 import sys
 import time
 import numpy as np
+from sys import exit
 
 # Line outage when HYGOV is used
 # Added for not making fatal changes to the original file
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 600
+    t_end = 10
     sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0

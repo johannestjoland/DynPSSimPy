@@ -109,7 +109,7 @@ def load():
             ]
         },
 
-        'pss': {
+        'pss0': {
             'STAB1': [
                 ['name',    'gen',  'K',    'T',    'T_1',  'T_2',  'T_3',  'T_4',  'H_lim'],
                 ['PSS1',    'G1',   50,     10.0,   0.5,    0.5,    0.05,   0.05,   0.03],
@@ -118,4 +118,32 @@ def load():
                 ['PSS4',    'G4',   50,     10.0,   0.5,    0.5,    0.05,   0.05,   0.03],
             ]
         },
+
+        'bat': {
+            # trying to define a simple Batter energy storage model. Extend 'gen' to gen, gen2 if looking at freq differences, trying this later
+            'BAT_FIRST': [
+                # K = droop, Imin kA, Imax kA, capacity kAh,  p_max = maximum power possible in kW, t_hour is corresponding time to discharge it fully in hours.
+                # T is time delay from input, that could be measurment delay and so on. Tdq is time delay before desired output current d and q components are obtained. 'eff' is efficiency, how much it can produce, accounting for inverter losses and so on
+                ['name', 'type', 'input', 'discrete', 'bus', 'gen', 'gen2', 'v_nom', 'p_max', 't_min', 'K', 'cell_imin',
+                 'cell_imax', 'n_par', 'n_series', 'cell_capacity', 'r_cell', 'cell_v_min', 'cell_v_max', 'soc_min',
+                 'soc_max', 'T', 'Tdq', 'eff'],
+                # ['BAT1', 'simple', 'B12', 'G4',    'G2', 600,     232.2,    0.016667,  0.0004,    -0.387,      0.387,     40,          1,            0.387,        0.01,      400,    600, 0.2, 1.0, 0.035, 0.035, 1.0],
+
+                ['BAT1', 'simple', 'speed', False, 'B3', 'G3', 'G1', 600, 232.2, 0.016667, 0.0004, -0.387, 0.387, 12.71,
+                 1, 0.387, 0.001, 400, 600, 0.2, 1.0, 0.01, 0.01, 1.0],
+                # ['BAT2', 'simple', 'speed',        False,  'B3', 'G3',    'G1', 600,     232.2,    0.016667,  0.0004,    -0.387,      0.387,      5*12.71,          1,            0.387,        0.001,      400,    600, 0.2, 1.0, 0.01, 0.01, 1.0],
+
+                # ['BAT2', 'simple', 'B2', 'G2',    '0', 600,     232.2,    0.016667,  0.0004,    -0.387,      0.387,     7.360,          1,            0.387,        0.001,      400,    600, 0.2, 1.0, 0.01, 0.01, 1.0],
+                # ['BAT3', 'simple', 'voltage',      'B3', 'G3',    'G1', 600,     232.2,    0.016667,  1*0.0004,    -0.387,      0.387,     18,          1,            0.387,        0.001,      400,    600, 0.2, 1.0, 0.01, 0.01, 1.0],
+                # ['BAT4', 'simple', 'B4', 'G4',    '0', 600,     232.2,    0.016667,  0.0004,    -0.387,      0.387,     5.26,          1,            0.387,        0.001,      400,    600, 0.2, 1.0, 0.01, 0.01, 1.0],
+                # ['BAT2', 'simple', 'B1', 'G1',    '0', 600,     232.2,    0.016667,  0.0004,    -0.387,      0.387,     -20,          1,            0.387,        0.001,      400,    600, 0.2, 1.0, 0.035, 0.035, 1.0],
+                # ['BAT2', 'simple',   'B2', 'G2',     'G1', 600,     232.2,    0.016667,  0.0004,    -0.387,      0.387,     40,          1,            0.387,      0.001,      400,    600, 0.2, 1.0, 0.035, 0.035, 1.0],
+            ]
+        },
+        'bat_ctrl': {
+            'P_CTRL_SPEED_LOCAL': [
+                ['name', 'input', 'gen', 'gen2',  'bat', 'R'],
+                ['BAT_CTRL_1', 'speed', 'G3', 'G1',  'BAT1', 0.0001],
+            ]
+        }
     }
