@@ -10,6 +10,8 @@ def plot_eigs(eigs):
     ax.axvline(0, color='k', linewidth=0.5)
     ax.axhline(0, color='k', linewidth=0.5)
     ax.grid(True)
+    ax.set_ylim([-2, 20])
+    ax.set_xlim([-20, 5])
 
     annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
                         bbox=dict(boxstyle="round", fc="w"),

@@ -37,7 +37,7 @@ def load():
         },
 
         'gov_on': False,
-        'avr_on': False,
+        'avr_on': True,
         'pss_on': False,  # not used yet
 
         'gov': {
@@ -47,10 +47,22 @@ def load():
                 ]
         },
 
-        'avr': {
+        'avr0': {
             'SEXS': [
                 ['name', 'gen', 'K', 'T_a', 'T_b', 'T_e', 'E_min', 'E_max'],
                 ['AVR1', 'G1', 100, 2.0, 10.0, 0.5, -3, 3],
+            ]
+        },
+        'avr0': {
+            'SEXS': [
+                ['name', 'gen', 'K', 'T_a', 'T_b', 'T_e', 'E_min', 'E_max'],
+                ['AVR1', 'G1', 825, 1.0, 0.019, 26.25, -3, 3],
+            ]
+        },
+        'avr': {
+            'AVR_WITH_FEEDBACK': [
+                ['name', 'gen', 'K_a', 'T_a', 'K_e', 'T_e',  'K_f', 'T_f', 'E_min', 'E_max'],
+                ['AVR1', 'G1',    825,  0.01,   1,   0.5,   0.012,   1.0,   -3,       3],
             ]
         },
     }

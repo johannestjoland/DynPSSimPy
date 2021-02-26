@@ -6,7 +6,7 @@ import dynpssimpy.utility_functions as dps_uf
 import importlib
 import sys
 import time
-
+import numpy as np
 
 if __name__ == '__main__':
     importlib.reload(dps)
@@ -53,6 +53,11 @@ if __name__ == '__main__':
         result_dict['Global', 't'].append(sol.t)
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]
 
+        # Storing generator voltages
+        for i in range(4):
+            result_dict['B'+str(i), 'Voltages'].append(np.abs(ps.v_red[i]))
+
+
     print('\nSimulation completed in {:.2f} seconds.'.format(time.time() - t_0))
 
     index = pd.MultiIndex.from_tuples(result_dict)
@@ -60,5 +65,5 @@ if __name__ == '__main__':
 
     fig, ax = plt.subplots(2)
     ax[0].plot(result[('Global', 't')], result.xs(key='speed', axis='columns', level=1))
-    ax[1].plot(result[('Global', 't')], result.xs(key='angle', axis='columns', level=1))
+    ax[1].plot(result[('Global', 't')], result.xs(key='Voltages', axis='columns', level=1))
     plt.show()

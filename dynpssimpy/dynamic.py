@@ -763,6 +763,7 @@ class PowerSystemModel:
         # Interfacing models  with system (current injections)
         self.i_inj_d = np.zeros(self.n_bus_red, dtype=complex)
         self.i_inj_q = np.zeros(self.n_bus_red, dtype=complex)
+
         for key, dm in self.gen_mdls.items():
             I_n = dm.par['S_n'] / (np.sqrt(3) * dm.par['V_n'])
             i_inj_d_mdl, i_inj_q_mdl = dm.current_injections(
@@ -773,7 +774,9 @@ class PowerSystemModel:
 
         # NEW BATTERY
         for key, dm in self.bat_mdls.items():
-            i_inj_d_mdl, i_inj_q_mdl = dm.current_injections(dm.int_par)
+            i_inj_d_mdl, i_inj_q_mdl = dm.current_injections(
+                x[dm.idx].view(dtype=dm.dtypes),
+                dm.int_par)
             np.add.at(self.i_inj_d, dm.bus_idx_red, i_inj_d_mdl)
             np.add.at(self.i_inj_q, dm.bus_idx_red, i_inj_q_mdl)
 

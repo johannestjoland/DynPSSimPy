@@ -13,7 +13,8 @@ class P_CTRL_SPEED_LOCAL:
 
     @staticmethod
     def initialize(x_0, input, output, p, int_par):
-        output['P_m'] = 1/p['R']*input['speed_dev']
+        #output['P_m'] = 1/p['R']*input['speed_dev']
+        pass
 
     @staticmethod
     def _update(dx, x, input, output, p, int_par):

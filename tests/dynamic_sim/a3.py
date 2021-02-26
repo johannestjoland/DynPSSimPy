@@ -81,7 +81,10 @@ if __name__ == '__main__':
         result_dict['Global', 't'].append(sol.t)                                                # Time
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]       # States
         ps.store_vars('GEN',gen_vars, gen_var_desc, result_dict)                                # Additional gen vars
-        ps.store_vars('load',load_vars, load_var_desc, result_dict)                             # Load vars
+        ps.store_vars('load',load_vars, load_var_desc, result_dict)
+        # Storing generator voltages
+        for i in range(2):
+            result_dict['B' + str(i), 'Voltages'].append(np.abs(ps.v_red[i]))
 
     print('   Simulation completed in {:.2f} seconds.'.format(time.time() - t_0))
     index = pd.MultiIndex.from_tuples(result_dict)
@@ -95,9 +98,9 @@ if __name__ == '__main__':
     p1 = p1[['G1']]                                     # Double brackets to access specific devices (e.g. G1)
     legnd1 = list(np.array(var1 + ': ')+p1.columns)     # legend for var1
 
-    var2 = 'angle'                                      # variable to plot
+    var2 = 'Voltages'                                      # variable to plot
     p2 = result.xs(key=var2, axis='columns', level=1)   # time domain values for var2
-    p2 = p2[['G1']]                                     # Double brackets to access specific devices (e.g. G1)
+    #p2 = p2[['G1']]                                     # Double brackets to access specific devices (e.g. G1)
     legnd2 = list(np.array(var2 + ': ') + p2.columns)   # legend for var2
 
     var3 = 'P_e'  # variable to plot
@@ -110,7 +113,7 @@ if __name__ == '__main__':
     ax[0].set_ylabel('Speed')
 
     ax[1].plot(t_plot, p2)
-    ax[1].plot(t_plot, p3)                              # Plotting two variables in same plot
+    #ax[1].plot(t_plot, p3)                              # Plotting two variables in same plot
     ax[1].legend(legnd2 + legnd3)
     ax[1].set_ylabel('Power and angle')
 

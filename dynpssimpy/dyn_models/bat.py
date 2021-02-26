@@ -5,14 +5,14 @@ import numpy as np
 
 class BAT_FIRST:
     def __init__(self):
-        self.state_list = ['SOC'] # Currently only this, the other states are to be done in controller blocks
+        self.state_list = ['SOC', 'i_inj_q'] # Currently only this, the other states are to be done in controller blocks
         self.input_list = ['V_t_abs', 'V_t_angle', 'p_ctrl']
         self.int_par_list = ['f', 's_n', 'V_dc',  'i_inj_q', 'i_inj_d'] # S_n is the apparent power rating in the system
         self.output_list = ['P_e', 'I_g']
 
     @staticmethod
     def initialize(x_0, input, output, p, int_par):
-        x_0['SOC'] = 0.8 # change this if another start is wanted
+        x_0['SOC'] = 0.5 # change this if another start is wanted
 
         int_par['V_dc'] = 500
         int_par['i_inj_q'] = 0 # no interaction at start
@@ -22,7 +22,7 @@ class BAT_FIRST:
         output['I_g'] = 0
 
     @staticmethod
-    def _current_injections(int_par):
+    def _current_injections(x,int_par):
         return int_par['i_inj_d'], int_par['i_inj_q']
 
     @staticmethod
@@ -76,6 +76,7 @@ class BAT_FIRST:
                     int_par['s_n'] * 1000)  # getting it to the AC systems per unit apparent power
 
         # Update the int_par parameters
+        # int_par['i_inj_q'] = delta_p_actual / v_q
         int_par['i_inj_q'] = delta_p_actual / v_q
         int_par['i_inj_d'] = 0
 
