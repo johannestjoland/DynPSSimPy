@@ -32,12 +32,13 @@ if __name__ == '__main__':
 
     # Add controls for all generators (not specified in model)
 
+    """
     model['gov'] = {'TGOV1':
                         [['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_1', 'T_2', 'T_3']] +
                         [['GOV' + str(i), gen_name, 0.05, 0, 0, 1, 0.2, 1, 2] for i, (gen_name, gen_p) in
                          enumerate(zip(ps.generators['name'], ps.generators['P']))]
                     }
-
+    #model.pop('gov')
     model['avr'] = {'SEXS':
                         [['name', 'gen', 'K', 'T_a', 'T_b', 'T_e', 'E_min', 'E_max']] +
                         [['AVR' + str(i), gen_name, 100, 2.0, 10.0, 0.5, -3, 3] for i, gen_name in
@@ -49,19 +50,20 @@ if __name__ == '__main__':
                        [['PSS' + str(i), gen_name, 50, 10.0, 0.5, 0.5, 0.05, 0.05, 0.03] for i, gen_name in
                          enumerate(ps.generators['name'])]
                     }
-    #model.pop('pss')
+    model.pop('pss')
+    """
 
     # Power system with governos, avr and pss
     ps = dps.PowerSystemModel(model=model)
     ps.use_numba = True
 
 
-    ps.pf_max_it = 100
+    ps.pf_max_it = 10
     ps.power_flow()
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 300
+    t_end = 20
     sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0
@@ -70,9 +72,11 @@ if __name__ == '__main__':
 
     gen_vars = ['P_e', 'I_g','P_m']
     load_vars = ['P_l']  # l subscript means "load"
+    hvdc_vars = ['P_e_1', 'P_e_2', 'I', 'p_ctrl']
 
     gen_var_desc = ps.var_desc('GEN',gen_vars)
     load_var_desc = ps.var_desc('load',load_vars)
+    hvdc_var_desc = ps.var_desc('HVDC', hvdc_vars)
 
     event_flag = True
     event_flag2 = True
@@ -84,12 +88,18 @@ if __name__ == '__main__':
         x = sol.y
         t = sol.t
 
+
         if t > 2 and event_flag:
             event_flag = False
             #ps.network_event('load_increase', 'B9', 'connect')
-            #ps.network_event('line', 'L7-8-1', 'disconnect')
+            ps.network_event('line', 'L3359-5101', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            ps.network_event('load_change', 'L3359-1', 'connect', value=1000)
+            #ps.network_event('load_change', 'L3359-1', 'connect', value=1000)
+
+        if t > 2.1 and event_flag2:
+            event_flag2 = False
+            #ps.network_event('load_change', 'L3359-1', 'connect', value=-1000)
+            ps.network_event('line', 'L3359-5101', 'connect')
 
         # Store result
         result_dict['Global', 't'].append(sol.t)
@@ -97,6 +107,7 @@ if __name__ == '__main__':
 
         # Store generator values
         ps.store_vars('GEN', gen_vars, gen_var_desc, result_dict)
+        ps.store_vars('HVDC', hvdc_vars, hvdc_var_desc, result_dict)
 
         # Store ACE signals
         if bool(ps.ace_mdls):
@@ -143,6 +154,18 @@ if __name__ == '__main__':
     ax3.set_xlabel('Time [s]')
     ax3.legend(legnd3)
     ax3.grid(True)
+
+    fig4, ax4 = plt.subplots(2)
+    p_e_1 = result.xs(key='P_e_1', axis='columns', level=1)
+    p_e_2 = result.xs(key='P_e_2', axis='columns', level=1)
+    legnd4 = list(np.array('P_e_1' + ': ') + p_e_1.columns)
+    legnd5 = list(np.array('P_e_2' + ': ') + p_e_2.columns)
+    ax4[0].plot(result[('Global', 't')], p_e_1)
+    ax4[0].plot(result[('Global', 't')], p_e_2)
+    ax4[0].legend(legnd4+legnd5)
+
+    ax4[1].plot(result[('Global', 't')], result.xs(key='p_ctrl', axis='columns', level=1))
+    ax4[1].legend(['p_ctrl'])
 
 
     plt.show()

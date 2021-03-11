@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    import ps_models.smib_tet4180 as model_data
+    import ps_models.n44 as model_data
     ps = dps.PowerSystemModel(model_data.load())
     ps.power_flow()
     ps.init_dyn_sim()
@@ -27,10 +27,11 @@ if __name__ == '__main__':
     rev = ps_lin.rev
     mode_shape = rev[np.ix_(ps.gen_mdls['GEN'].state_idx['speed'], mode_idx)]
 
+    """
     # Plot mode shape
     if len(mode_idx) > 0:
         fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})
         for ax_, ms in zip(ax, mode_shape.T):
             dps_plt.plot_mode_shape(ms, ax=ax_, normalize=True)
-
-        plt.show()
+    """
+    plt.show()

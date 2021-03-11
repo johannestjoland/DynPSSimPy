@@ -11,9 +11,13 @@ import dynpssimpy.dyn_models.avr as avr_lib
 import dynpssimpy.dyn_models.gov as gov_lib
 import dynpssimpy.dyn_models.pss as pss_lib
 import dynpssimpy.dyn_models.gen as gen_lib
+
 import dynpssimpy.dyn_models.ace as ace_lib # ADDED
 import dynpssimpy.dyn_models.bat as bat_lib # NEW
 import dynpssimpy.dyn_models.bat_ctrl as bat_ctrl_lib # NEW
+import dynpssimpy.dyn_models.hvdc as hvdc_lib
+import dynpssimpy.dyn_models.hvdc_ctrl as hvdc_ctrl_lib
+
 import importlib
 from scipy import sparse as sp
 from scipy.sparse import linalg as sp_linalg
@@ -21,7 +25,7 @@ from scipy.integrate import RK45
 
 from sys import exit
 
-[importlib.reload(lib) for lib in [gen_lib, gov_lib, avr_lib, pss_lib, ace_lib, bat_lib, bat_ctrl_lib]]
+[importlib.reload(lib) for lib in [gen_lib, gov_lib, avr_lib, pss_lib, ace_lib, bat_lib, bat_ctrl_lib, hvdc_lib, hvdc_ctrl_lib]]
 
 
 class PowerSystemModel:
@@ -49,7 +53,7 @@ class PowerSystemModel:
                 setattr(self, td, np.empty(0))
 
         # Get dynamic data: Convert dicts with lists to dicts with np.arrays
-        for td in ['gov', 'avr', 'pss', 'generators', 'ace', 'bat', 'bat_ctrl']: # ADDED ACE
+        for td in ['gov', 'avr', 'pss', 'generators', 'ace', 'bat', 'bat_ctrl', 'hvdc', 'hvdc_ctrl']: # ADDED ACE
             setattr(self, td, dict())
             if td in model and len(model[td]) > 0:
                 for key in model[td].keys():
@@ -501,9 +505,12 @@ class PowerSystemModel:
         # NEW 
         self.bat_mdls = dict()
         self.bat_ctrl_mdls = dict()
-        for i, (input_data, container, library) in enumerate(zip([self.gen, self.gov, self.pss, self.avr, self.ace, self.bat, self.bat_ctrl],
-                                                                 [self.gen_mdls, self.gov_mdls, self.pss_mdls, self.avr_mdls, self.ace_mdls, self.bat_mdls, self.bat_ctrl_mdls],
-                                                                 [gen_lib, gov_lib, pss_lib, avr_lib, ace_lib, bat_lib, bat_ctrl_lib])):
+        self.hvdc_mdls = dict()
+        self.hvdc_ctrl_mdls = dict()
+
+        for i, (input_data, container, library) in enumerate(zip([self.gen, self.gov, self.pss, self.avr, self.ace, self.bat, self.bat_ctrl, self.hvdc, self.hvdc_ctrl],
+                                                                 [self.gen_mdls, self.gov_mdls, self.pss_mdls, self.avr_mdls, self.ace_mdls, self.bat_mdls, self.bat_ctrl_mdls, self.hvdc_mdls, self.hvdc_ctrl_mdls],
+                                                                 [gen_lib, gov_lib, pss_lib, avr_lib, ace_lib, bat_lib, bat_ctrl_lib, hvdc_lib, hvdc_ctrl_lib])):
 
             for key in input_data.keys():
                 data = input_data[key].copy()
@@ -626,6 +633,52 @@ class PowerSystemModel:
                         if len(lookup) > 0:
                             mdl.bat_idx[bat_key] = [mask, lookup]
 
+                elif i == 7: # Do this for HVDC
+                    mdl.active = np.ones(len(data), dtype=bool)
+
+                    # Getting correct bus indexes for enabling efficient calculation of power flow
+                    buses_1 = []
+                    buses_2 = []
+                    buses_to_keep_1 = data['bus1']
+                    buses_to_keep_2 = data['bus2']
+                    for bus1, bus2 in zip(buses_to_keep_1, buses_to_keep_2):
+                        for bus in self.buses['name']:
+                            if bus == bus1: buses_1.append(bus)
+                            if bus == bus2: buses_2.append(bus)
+
+                    mdl.bus_idx_1 = dps_uf.lookup_strings(buses_1, self.buses['name'])
+                    mdl.bus_idx_2 = dps_uf.lookup_strings(buses_2, self.buses['name'])
+                    mdl.bus_idx_red_1 = self.get_bus_idx_red(buses_1)
+                    mdl.bus_idx_red_2 = self.get_bus_idx_red(buses_2)
+
+                    mdl.int_par['f'] = self.f
+                    mdl.int_par['s_n'] = self.s_n
+                    mdl.int_par['p_ref'] = mdl.par['p_ref']/self.s_n  # set this to zero currently, to not interact with steady-state operation
+
+                elif i == 8:  # DO FOR HVDC CONTROLLERS ONLY
+                    mdl.active = np.ones(len(data), dtype=bool)
+
+                    # Getting reduced bus index for accessing correct voltages and stuff
+                    buses_1 = []
+                    buses_2 = []
+                    buses_to_keep_1 = data['bus1']
+                    buses_to_keep_2 = data['bus2']
+                    for bus1, bus2 in zip(buses_to_keep_1, buses_to_keep_2):
+                        for bus in self.buses['name']:
+                            if bus == bus1: buses_1.append(bus)
+                            if bus == bus2: buses_2.append(bus)
+
+                    mdl.bus_idx_1 = dps_uf.lookup_strings(buses_1, self.buses['name'])
+                    mdl.bus_idx_2 = dps_uf.lookup_strings(buses_2, self.buses['name'])
+                    mdl.bus_idx_red_1 = self.get_bus_idx_red(buses_1)
+                    mdl.bus_idx_red_2 = self.get_bus_idx_red(buses_2)
+
+                    # Finding HVDC-link to the controller
+                    mdl.hvdc_idx = dict()
+                    for hvdc_key in self.hvdc.keys():
+                        lookup, mask = dps_uf.lookup_strings(data['hvdc'], self.hvdc[hvdc_key]['name'], return_mask=True)
+                        if len(lookup) > 0:
+                            mdl.hvdc_idx[hvdc_key] = [mask, lookup]
 
                 else:  # Do this for control models only
                     mdl.active = np.ones(len(data), dtype=bool)
@@ -751,6 +804,35 @@ class PowerSystemModel:
                 if 'delta_0' in dm.int_par.dtype.names:
                     dm.int_par['delta_0'] = self.x0[13]-self.x0[1]
 
+        # HVDC
+        for key, dm in self.hvdc_mdls.items():
+            v_1 = self.v_red[dm.bus_idx_red_1]
+            v_2 = self.v_red[dm.bus_idx_red_2]
+
+            dm.input['V_t_abs_1'] = np.abs(v_1)
+            dm.input['V_t_angle_1'] = np.angle(v_1)
+
+            dm.input['V_t_abs_2'] = np.abs(v_2)
+            dm.input['V_t_angle_2'] = np.angle(v_2)
+
+            dm.initialize(
+                self.x0[dm.idx].view(dtype=dm.dtypes),
+                dm.input, dm.output, dm.par, dm.int_par)
+
+        # HVDC CONTROL
+        for key, dm in self.hvdc_ctrl_mdls.items():
+            v_1 = self.v_red[dm.bus_idx_red_1]
+            v_2 = self.v_red[dm.bus_idx_red_2]
+
+            dm.input['V_t_angle_1'] = np.angle(v_1)
+            dm.input['V_t_angle_2'] = np.angle(v_2)
+
+            dm.initialize(
+                self.x0[dm.idx].view(dtype=dm.dtypes),
+                dm.input, dm.output, dm.par, dm.int_par)
+
+            dm.output['p_ctrl'] = 0 # should maybe be a list, but will fix later if neeeded
+
         # PSS
         for key, dm in self.pss_mdls.items():
             if hasattr(dm, 'initialize'):
@@ -779,6 +861,17 @@ class PowerSystemModel:
                 dm.int_par)
             np.add.at(self.i_inj_d, dm.bus_idx_red, i_inj_d_mdl)
             np.add.at(self.i_inj_q, dm.bus_idx_red, i_inj_q_mdl)
+
+        # HVDC
+        for key, dm in self.hvdc_mdls.items():
+            i_inj_q_1, i_inj_q_2 = dm.current_injections(
+                x[dm.idx].view(dtype=dm.dtypes),
+                dm.int_par)
+
+            np.add.at(self.i_inj_q, dm.bus_idx_red_1, i_inj_q_1)
+            np.add.at(self.i_inj_q, dm.bus_idx_red_2, i_inj_q_2)
+
+
 
         self.i_inj = self.i_inj_d + self.i_inj_q
         self.v_red = sp_linalg.spsolve(self.y_bus_red + self.y_bus_red_mod, self.i_inj)
@@ -831,6 +924,40 @@ class PowerSystemModel:
                 dm.input, dm.output, dm.par, dm.int_par)
         # END BATTERY
 
+        # HVDC control
+        for key, dm in self.hvdc_ctrl_mdls.items():
+            v_1 = self.v_red[dm.bus_idx_red_1]
+            v_2 = self.v_red[dm.bus_idx_red_2]
+
+            dm.input['V_t_angle_1'] = np.angle(v_1)
+            dm.input['V_t_angle_2'] = np.angle(v_2)
+
+            dm.update(
+                dx[dm.idx].view(dtype=dm.dtypes),
+                x[dm.idx].view(dtype=dm.dtypes),
+                dm.input, dm.output, dm.par, dm.int_par)
+
+            # Send the power signals to the corresponding HVDC-links
+            for hvdc_key, (mask, idx) in dm.hvdc_idx.items():
+                hvdc_mdl = self.hvdc_mdls[hvdc_key]
+                hvdc_mdl.input['p_ctrl'][idx[dm.active[mask]]] = dm.output['p_ctrl'][dm.active & mask]
+
+        # HVDC
+        for key, dm in self.hvdc_mdls.items():
+            v_1 = self.v_red[dm.bus_idx_red_1]
+            v_2 = self.v_red[dm.bus_idx_red_2]
+
+            dm.input['V_t_abs_1'] = np.abs(v_1)
+            dm.input['V_t_angle_1'] = np.angle(v_1)
+
+            dm.input['V_t_abs_2'] = np.abs(v_2)
+            dm.input['V_t_angle_2'] = np.angle(v_2)
+
+            dm.update(
+                dx[dm.idx].view(dtype=dm.dtypes),
+                x[dm.idx].view(dtype=dm.dtypes),
+                dm.input, dm.output, dm.par, dm.int_par)
+
         # GOV
         for key, dm in self.gov_mdls.items():
             input = np.zeros(dm.n_units, dtype=float)
@@ -841,7 +968,6 @@ class PowerSystemModel:
                 x_loc = x[gen_mdl.idx]
                 input[mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
                 dm.input['speed_dev'][mask] = -x_loc[gen_mdl.state_idx['speed'][idx]]
-
 
             dm.update(
                 dx[dm.idx].view(dtype=dm.dtypes),
@@ -1034,6 +1160,13 @@ class PowerSystemModel:
                         desc.append([load[0],var])
                     if var == 'S_l':
                         desc.append([load[0],var])
+        elif type == 'HVDC':
+            outputs = sorted(set(varnames) & set(self.hvdc_mdls['HVDC_SIMPLE'].output_list), key = varnames.index)
+            inputs = sorted(set(varnames) & set(self.hvdc_mdls['HVDC_SIMPLE'].input_list), key = varnames.index)
+            varnames =  outputs + inputs
+            for var in varnames:
+                for gen in self.hvdc_mdls['HVDC_SIMPLE'].par:
+                    desc.append([gen[0],var])
         return desc
 
     def store_vars(self, type, varnames, vardesc, resultdict):
@@ -1069,6 +1202,18 @@ class PowerSystemModel:
                     [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.real(store_vars))]
                 if 'Q_l' in varnames:
                     [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, np.imag(store_vars))]
+
+        elif type == 'HVDC':
+            var_outs = sorted(set(varnames) & set(self.hvdc_mdls['HVDC_SIMPLE'].output_list), key = varnames.index)
+            var_ins = sorted(set(varnames) & set(self.hvdc_mdls['HVDC_SIMPLE'].input_list), key = varnames.index)
+            store_vars_out = self.hvdc_mdls['HVDC_SIMPLE'].output[var_outs]
+
+            store_vars_out = [i[k] for k in range(len(store_vars_out[0])) for i in store_vars_out]
+
+            store_vars_in = self.hvdc_mdls['HVDC_SIMPLE'].input[var_ins]
+            store_vars_in = [i[k] for k in range(len(store_vars_in[0])) for i in store_vars_in]
+            store_vars_out.extend(store_vars_in)
+            [resultdict[tuple(desc)].append(out) for desc, out in zip(vardesc, store_vars_out)]
 
     def compute_result(self, type, name, res):
         if type == 'load':
