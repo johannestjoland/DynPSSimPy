@@ -655,6 +655,20 @@ class PowerSystemModel:
                     mdl.int_par['s_n'] = self.s_n
                     mdl.int_par['p_ref'] = mdl.par['p_ref']/self.s_n  # set this to zero currently, to not interact with steady-state operation
 
+                    # TAKING IN GENERATOR POWER ANGLE FOR DQ TRANSFORM
+                    mdl.gen_idx1 = dict()
+                    for gen_key in self.gen.keys():
+                        lookup, mask = dps_uf.lookup_strings(data['gen1'], self.gen[gen_key]['name'], return_mask=True)
+                        if len(lookup) > 0:
+                            mdl.gen_idx1[gen_key] = [mask, lookup]
+
+                    # TAKING IN GENERATOR POWER ANGLE FOR DQ TRANSFORM
+                    mdl.gen_idx2 = dict()
+                    for gen_key in self.gen.keys():
+                        lookup, mask = dps_uf.lookup_strings(data['gen2'], self.gen[gen_key]['name'], return_mask=True)
+                        if len(lookup) > 0:
+                            mdl.gen_idx2[gen_key] = [mask, lookup]
+
                 elif i == 8:  # DO FOR HVDC CONTROLLERS ONLY
                     mdl.active = np.ones(len(data), dtype=bool)
 
@@ -787,14 +801,6 @@ class PowerSystemModel:
             if hasattr(dm, 'initialize'):
                 pass
 
-        # BATTERY 
-        for key, dm in self.bat_mdls.items(): 
-            if hasattr(dm, 'initialize'): 
-                # COULD POTENTIALLY SET SOC HERE
-                dm.initialize(
-                    self.x0[dm.idx].view(dtype=dm.dtypes),
-                    dm.input, dm.output, dm.par, dm.int_par)
-
         # BATTERY CONTROL
         for key, dm in self.bat_ctrl_mdls.items():
             if hasattr(dm, 'initialize'):
@@ -802,7 +808,36 @@ class PowerSystemModel:
                     self.x0[dm.idx].view(dtype=dm.dtypes),
                     dm.input, dm.output, dm.par, dm.int_par)
                 if 'delta_0' in dm.int_par.dtype.names:
-                    dm.int_par['delta_0'] = self.x0[13]-self.x0[1]
+                    dm.int_par['delta_0'] = 0
+                    # dm.int_par['delta_0'] = 0 # self.x0[13]-self.x0[1]
+                    for gen_key, (
+                    mask, idx) in dm.gen_idx_1.items():  # SAME GENERATORS THAT THE BATTERY ARE USING INPUT SIGNAL FROM
+                        gen_mdl = self.gen_mdls[gen_key]
+                        x_loc = self.x0[gen_mdl.idx]
+                        if 'speed_dev' in dm.input.dtype.names:
+                            dm.input['speed_dev'][mask] = 0 # -x_loc[gen_mdl.state_idx['speed'][idx]]
+                        elif 'angle_dev' in dm.input.dtype.names:
+                            dm.input['angle_dev'][mask] = 0 # -x_loc[gen_mdl.state_idx['angle'][idx]]
+                            dm.int_par['delta_0'][mask] += x_loc[gen_mdl.state_idx['angle'][idx]]
+
+                    if bool(dm.gen_idx_2):
+                        for gen_key, (mask,
+                                      idx) in dm.gen_idx_2.items():  # SAME GENERATORS THAT THE BATTERY ARE USING INPUT SIGNAL FROM
+                            gen_mdl = self.gen_mdls[gen_key]
+                            x_loc = self.x0[gen_mdl.idx]
+                            if 'speed_dev' in dm.input.dtype.names:
+                                dm.input['speed_dev'][mask] += 0 # x_loc[gen_mdl.state_idx['speed'][idx]]
+                            elif 'angle_dev' in dm.input.dtype.names:
+                                dm.input['angle_dev'][mask] += 0 # x_loc[gen_mdl.state_idx['angle'][idx]]
+                                dm.int_par['delta_0'][mask] -= x_loc[gen_mdl.state_idx['angle'][idx]]
+
+        # BATTERY 
+        for key, dm in self.bat_mdls.items(): 
+            if hasattr(dm, 'initialize'): 
+                # COULD POTENTIALLY SET SOC HERE
+                dm.initialize(
+                    self.x0[dm.idx].view(dtype=dm.dtypes),
+                    dm.input, dm.output, dm.par, dm.int_par)
 
         # HVDC
         for key, dm in self.hvdc_mdls.items():
@@ -814,6 +849,8 @@ class PowerSystemModel:
 
             dm.input['V_t_abs_2'] = np.abs(v_2)
             dm.input['V_t_angle_2'] = np.angle(v_2)
+
+            dm.int_par['p_ref'] = 0
 
             dm.initialize(
                 self.x0[dm.idx].view(dtype=dm.dtypes),
@@ -867,11 +904,8 @@ class PowerSystemModel:
             i_inj_q_1, i_inj_q_2 = dm.current_injections(
                 x[dm.idx].view(dtype=dm.dtypes),
                 dm.int_par)
-
             np.add.at(self.i_inj_q, dm.bus_idx_red_1, i_inj_q_1)
             np.add.at(self.i_inj_q, dm.bus_idx_red_2, i_inj_q_2)
-
-
 
         self.i_inj = self.i_inj_d + self.i_inj_q
         self.v_red = sp_linalg.spsolve(self.y_bus_red + self.y_bus_red_mod, self.i_inj)
@@ -924,6 +958,7 @@ class PowerSystemModel:
                 dm.input, dm.output, dm.par, dm.int_par)
         # END BATTERY
 
+
         # HVDC control
         for key, dm in self.hvdc_ctrl_mdls.items():
             v_1 = self.v_red[dm.bus_idx_red_1]
@@ -952,6 +987,29 @@ class PowerSystemModel:
 
             dm.input['V_t_abs_2'] = np.abs(v_2)
             dm.input['V_t_angle_2'] = np.angle(v_2)
+
+            input = np.zeros(dm.n_units, dtype=float)
+            for gen_key, (mask, idx) in dm.gen_idx1.items():
+                # mask: Boolean mask to map controls to generators
+                # idx: Points to which generators are controlled
+                gen_mdl = self.gen_mdls[gen_key]
+                x_loc = x[gen_mdl.idx]
+                input[mask] = x_loc[gen_mdl.state_idx['angle'][idx]]
+                dm.input['ang_dq1'][mask] = x_loc[gen_mdl.state_idx['angle'][idx]]
+
+            input = np.zeros(dm.n_units, dtype=float)
+            for gen_key, (mask, idx) in dm.gen_idx2.items():
+                # mask: Boolean mask to map controls to generators
+                # idx: Points to which generators are controlled
+                gen_mdl = self.gen_mdls[gen_key]
+                x_loc = x[gen_mdl.idx]
+                input[mask] = x_loc[gen_mdl.state_idx['angle'][idx]]
+                dm.input['ang_dq2'][mask] = x_loc[gen_mdl.state_idx['angle'][idx]]
+
+            if dm.input['V_t_angle_1'] - dm.input['V_t_angle_2'] < -np.pi:
+                dm.input['V_t_angle_1'] += 2 * np.pi
+            elif dm.input['V_t_angle_2'] - dm.input['V_t_angle_1'] < -np.pi:
+                dm.input['V_t_angle_2'] += 2 * np.pi
 
             dm.update(
                 dx[dm.idx].view(dtype=dm.dtypes),

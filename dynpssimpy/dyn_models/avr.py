@@ -22,6 +22,7 @@ class SEXS:
         v_1 = 1 / p['T_b'] * (p['T_a'] * u - x['x'])
 
         dx['x'][:] = v_1 - u
+
         dx['e_f'][:] = 1/p['T_e'] * (p['K'] * v_1 - x['e_f'])
 
         # Lims on state variable e_f (clamping)

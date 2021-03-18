@@ -25,7 +25,7 @@ ps.init_dyn_sim()
 
 # index = dps_uf.lookup_strings('G1', ps.gen_mdls['GEN'].par['name'])  # Index for G1
 index = dps_uf.lookup_strings('HVDC_CTRL1', ps.hvdc_ctrl_mdls['HVDC_WASH_LEAD_LAG'].par['name'])
-
+#index = dps_uf.lookup_strings('BAT_CTRL_WASH_1', ps.bat_ctrl_mdls['WASH_LEAD_LAG'].par['name'])
 # index = dps_uf.lookup_strings('AVR1', ps.avr_mdls['TGR'].par['name'])  # Index for AVR1
 
 # index = dps_uf.lookup_strings(['G1','IB'], ps.gen_mdls['GEN'].par['name'])  # Indices for G1 and IB
@@ -41,7 +41,7 @@ for i in range(10):
 
     #pf, rev_Abs, rev_ang = ps_lin.pf_table()
     # Plot eigenvalues
-    dps_plt.plot_eigs_2(ps_lin.eigs, ax, fig, [0, 0, 1/10*i])
+    dps_plt.plot_eigs_2(ps_lin.eigs, ax, fig, [0, 0, 1/20*i])
     # sc = ax.scatter(ps_lin.eigs.real, ps_lin.eigs.imag)
     ax.axvline(0, color='k', linewidth=0.5)
     ax.axhline(0, color='k', linewidth=0.5)

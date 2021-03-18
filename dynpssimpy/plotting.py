@@ -7,6 +7,58 @@ import matplotlib.cm as cm
 def plot_eigs(eigs):
     fig, ax = plt.subplots(1)
     sc = ax.scatter(eigs.real, eigs.imag)
+
+    ax.plot([0, -10], [0, 199.75], linestyle='dotted', color='red')  # 5%
+    ax.plot([0, -10], [0, 99.4987], linestyle='dotted', color='black') # 10%, demping: Re/sqrt(Re^2+Im^2)
+    ax.plot([0, -10], [0, 65.9124], linestyle='dotted', color='blue') # 15%
+    ax.legend(['5%', '10%', '15%'])
+
+    ax.axvline(0, color='k', linewidth=0.5)
+    ax.axhline(0, color='k', linewidth=0.5)
+    ax.grid(True)
+    ax.set_ylim([-2, 15])
+    ax.set_xlim([-6, 2])
+
+    annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
+                        bbox=dict(boxstyle="round", fc="w"),
+                        arrowprops=dict(arrowstyle="->"))
+    annot.set_visible(False)
+
+    def update_annot(ind):
+
+        pos = sc.get_offsets()[ind["ind"][0]]
+        annot.xy = pos
+        text = '{:.2f} Hz\n{:.2f}%'.format(pos[1] / (2 * np.pi), -100 * pos[0] / np.sqrt(sum(pos ** 2)))
+        annot.set_text(text)
+        annot.get_bbox_patch().set_facecolor('C0')
+        annot.get_bbox_patch().set_alpha(0.4)
+
+    def hover(event):
+        vis = annot.get_visible()
+        if event.inaxes == ax:
+            cont, ind = sc.contains(event)
+            if cont:
+                update_annot(ind)
+                annot.set_visible(True)
+                fig.canvas.draw_idle()
+            else:
+                if vis:
+                    annot.set_visible(False)
+                    fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect("motion_notify_event", hover)
+
+def plot_eigs_2(eigs, ax, fig, col):
+    """
+    Same as the one above, but can plot several things in one
+    """
+    sc = ax.scatter(eigs.real, eigs.imag, color = col)
+
+    ax.plot([0, -10], [0, 199.75], linestyle='dotted', color='red')  # 5%
+    ax.plot([0, -10], [0, 99.4987], linestyle='dotted', color='black') # 10%, demping: Re/sqrt(Re^2+Im^2)
+    ax.plot([0, -10], [0, 65.9124], linestyle='dotted', color='blue') # 15%
+    ax.legend(['5%', '10%', '15%'])
+
     ax.axvline(0, color='k', linewidth=0.5)
     ax.axhline(0, color='k', linewidth=0.5)
     ax.grid(True)
@@ -35,10 +87,10 @@ def plot_eigs(eigs):
                 update_annot(ind)
                 annot.set_visible(True)
                 fig.canvas.draw_idle()
-            else:
-                if vis:
-                    annot.set_visible(False)
-                    fig.canvas.draw_idle()
+            #else:
+            #    if vis:
+            #        annot.set_visible(False)
+            #        fig.canvas.draw_idle()
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 

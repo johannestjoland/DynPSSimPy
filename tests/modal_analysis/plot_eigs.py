@@ -28,6 +28,23 @@ if __name__ == '__main__':
     mode_shape = rev[np.ix_(ps.gen_mdls['GEN'].state_idx['speed'], mode_idx)]
 
     """
+    fig33, ax33 = plt.subplots(1)
+    (-0.276, 4.05)
+    (-0.431, 5.761)
+    time = np.arange(0, 50, 0.0001);
+    y1 = 3*np.exp(-0.36/4*time)*np.sin(2.44*time)
+    y2 = np.exp(-0.276/4*time)*np.sin(4.05*time)
+    y3 = np.exp(-0.431/4*time)*np.sin(-5.761*time)
+    y4 = np.exp(-0.519/4*time)*np.sin(6.583*time)
+    y5 = np.exp(-0.721/4*time)*np.sin(6.71*time)
+    #ax33.plot(time, y1, color='black')
+    #ax33.plot(time, y2, color='blue')
+    #ax33.plot(time, y3, color='r')
+    ax33.plot(time, y3+y4, color='g')
+    ax33.grid(True)
+    """
+
+    """
     # Plot mode shape
     if len(mode_idx) > 0:
         fig, ax = plt.subplots(1, mode_shape.shape[1], subplot_kw={'projection': 'polar'})

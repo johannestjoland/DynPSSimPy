@@ -63,7 +63,7 @@ if __name__ == '__main__':
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 20
+    t_end = 50
     sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     gen_vars = ['P_e', 'I_g','P_m']
     load_vars = ['P_l']  # l subscript means "load"
-    hvdc_vars = ['P_e_1', 'P_e_2', 'I', 'p_ctrl']
+    hvdc_vars = ['P_e_1', 'P_e_2', 'I', 'i_inj_q_1_out', 'i_inj_q_2_out', 'p_ctrl', 'V_t_angle_1', 'V_t_angle_2', 'ang_dq1', 'ang_dq2']
 
     gen_var_desc = ps.var_desc('GEN',gen_vars)
     load_var_desc = ps.var_desc('load',load_vars)
@@ -91,16 +91,18 @@ if __name__ == '__main__':
 
         if t > 2 and event_flag:
             event_flag = False
+            ps.network_event('sc', '5610', 'connect')
             #ps.network_event('load_increase', 'B9', 'connect')
-            ps.network_event('line', 'L3359-5101', 'disconnect')
+            # ps.network_event('line', 'L3359-5101-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
-            #ps.network_event('load_change', 'L3359-1', 'connect', value=1000)
+            #ps.network_event('load_change', 'L3359-1', 'connect', value=100)
 
-        if t > 2.1 and event_flag2:
+        if t > 2.02 and event_flag2:
             event_flag2 = False
             #ps.network_event('load_change', 'L3359-1', 'connect', value=-1000)
-            ps.network_event('line', 'L3359-5101', 'connect')
-
+            #ps.network_event('line', 'L3359-5101-1', 'connect')
+            ps.network_event('sc', '5610', 'disconnect')
+        #if t > 3.28: exit()
         # Store result
         result_dict['Global', 't'].append(sol.t)
         [result_dict[tuple(desc)].append(state) for desc, state in zip(ps.state_desc, x)]
@@ -155,17 +157,30 @@ if __name__ == '__main__':
     ax3.legend(legnd3)
     ax3.grid(True)
 
-    fig4, ax4 = plt.subplots(2)
+    fig4, ax4 = plt.subplots(5)
     p_e_1 = result.xs(key='P_e_1', axis='columns', level=1)
     p_e_2 = result.xs(key='P_e_2', axis='columns', level=1)
     legnd4 = list(np.array('P_e_1' + ': ') + p_e_1.columns)
     legnd5 = list(np.array('P_e_2' + ': ') + p_e_2.columns)
     ax4[0].plot(result[('Global', 't')], p_e_1)
     ax4[0].plot(result[('Global', 't')], p_e_2)
+    ax4[0].grid(True)
     ax4[0].legend(legnd4+legnd5)
 
     ax4[1].plot(result[('Global', 't')], result.xs(key='p_ctrl', axis='columns', level=1))
+    ax4[2].plot(result[('Global', 't')], result.xs(key='V_t_angle_1', axis='columns', level=1))
+    ax4[2].plot(result[('Global', 't')], result.xs(key='V_t_angle_2', axis='columns', level=1))
+    ax4[2].plot(result[('Global', 't')], result.xs(key='V_t_angle_1', axis='columns', level=1)-result.xs(key='V_t_angle_2', axis='columns', level=1))
     ax4[1].legend(['p_ctrl'])
+    ax4[2].legend(['V_t_angle_1', 'V_t_angle_2', 'delta_v_angle'])
+
+    ax4[3].plot(result[('Global', 't')], result.xs(key='i_inj_q_1_out', axis='columns', level=1))
+    ax4[3].plot(result[('Global', 't')], result.xs(key='i_inj_q_2_out', axis='columns', level=1))
+    ax4[3].legend(['i_inj_q_1', 'i_inj_q_2'])
+
+    ax4[4].plot(result[('Global', 't')], result.xs(key='ang_dq1', axis='columns', level=1))
+    ax4[4].plot(result[('Global', 't')], result.xs(key='ang_dq2', axis='columns', level=1))
+    ax4[4].legend(['ang_dq1', 'ang_dq2'])
 
 
     plt.show()

@@ -5,7 +5,7 @@ import numpy as np
 
 class BAT_FIRST:
     def __init__(self):
-        self.state_list = ['SOC', 'i_inj_q'] # Currently only this, the other states are to be done in controller blocks
+        self.state_list = ['SOC', 'i_inj_q', 'p_m'] # Currently only this, the other states are to be done in controller blocks
         self.input_list = ['V_t_abs', 'V_t_angle', 'p_ctrl']
         self.int_par_list = ['f', 's_n', 'V_dc',  'i_inj_q', 'i_inj_d'] # S_n is the apparent power rating in the system
         self.output_list = ['P_e', 'I_g']
@@ -13,6 +13,8 @@ class BAT_FIRST:
     @staticmethod
     def initialize(x_0, input, output, p, int_par):
         x_0['SOC'] = 0.5 # change this if another start is wanted
+        x_0['i_inj_q'] = 0
+        x_0['p_m'] = 0
 
         int_par['V_dc'] = 500
         int_par['i_inj_q'] = 0 # no interaction at start
@@ -34,13 +36,15 @@ class BAT_FIRST:
         # Converting to terminal voltage phasor (inputs are only float, not complex).
         # This is to avoid having to specify units in input_list in model definition.
         v_g = input['V_t_abs']*np.exp(1j*input['V_t_angle'])  # Potential p.u. error
-        angle = np.angle(input['V_t_angle']) # angle
+        angle = np.angle(v_g) # angle
         v_dq = v_g * np.exp(1j * (np.pi / 2 - angle))
         v_d = v_dq.real
         v_q = v_dq.imag
 
         # wanted power from controller
-        p_m = input['p_ctrl']
+        p_m_wanted = -input['p_ctrl']
+
+        p_m = x['p_m']
         i_pu = p_m/int_par['V_dc']
 
         # Wanting the same current applied from all battery cells. Accounting for paralell cells when computing the power in the end
@@ -80,6 +84,9 @@ class BAT_FIRST:
         int_par['i_inj_q'] = delta_p_actual / v_q
         int_par['i_inj_d'] = 0
 
+        i_inj_q_wanted = delta_p_actual/v_q
+        int_par['i_inj_q'] = x['i_inj_q']
+
         # Merging the d- and q-component of the current
         i_b_dq = int_par['i_inj_d'] + 1j * int_par['i_inj_q']
 
@@ -87,6 +94,8 @@ class BAT_FIRST:
             -1j * (np.pi / 2 - angle))
 
         output['I_g'][:] = abs(I_g)
-        output['P_e'][:] = int_par['i_inj_q']*v_q + int_par['i_inj_d']*v_d*int_par['s_n']
+        output['P_e'][:] = (int_par['i_inj_q']*v_q + int_par['i_inj_d']*v_d)*int_par['s_n']
 
+        dx['p_m'] = 1/p['T']*(p_m_wanted - x['p_m'])
+        dx['i_inj_q'] = 1 / p['Tdq'] * (i_inj_q_wanted - x['i_inj_q']),
         dx['SOC'] = u
