@@ -10,7 +10,8 @@ import importlib
 import sys
 import time
 import numpy as np
-
+import dynpssimpy.modal_analysis as dps_mdl
+import dynpssimpy.plotting as dps_plt
 # Line outage when HYGOV is used
 # Added for not making fatal changes to the original file
 
@@ -25,6 +26,21 @@ if __name__ == '__main__':
     # import ps_models.sm_load as model_data
     model = model_data.load()
 
+    """
+    # Decreasing generator and load power
+    for idx, gen in enumerate(model['generators']['GEN']):
+        if idx == 0: continue
+        gen[4] = gen[4]/2
+
+    for idx, load in enumerate(model['loads']):
+        if idx == 0: continue
+        load[2] = load[2]/2  # decreasing active power
+        load[3] = load[3]/2  # decreasing reactive power """
+    for idx, avr in enumerate(model['avr']['SEXS']):
+        if idx == 0: continue
+        avr[2] = avr[2]/1.5
+        avr[6] = -10
+        avr[7] = 10
 
     # Calling model twice, first is to get the desired names and so on.
     # Could probably do it another way, but this works
@@ -63,8 +79,8 @@ if __name__ == '__main__':
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 50
-    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
+    t_end = 100
+    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=10e-3)
 
     t = 0
     result_dict = defaultdict(list)
@@ -80,6 +96,16 @@ if __name__ == '__main__':
 
     event_flag = True
     event_flag2 = True
+    event_flag_mode = True
+    event_flag_mode2 = True
+    event_flag_mode3 = True
+    event_flag_mode4 = True
+
+    fig_mode, ax_mode = plt.subplots(1)
+    # Perform system linearization
+    ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+    ps_lin.linearize()
+    dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[1, 0, 0])
     while t < t_end:
         sys.stdout.write("\r%d%%" % (t/(t_end)*100))
 
@@ -91,17 +117,43 @@ if __name__ == '__main__':
 
         if t > 2 and event_flag:
             event_flag = False
-            ps.network_event('sc', '5610', 'connect')
+            #ps.network_event('sc', '3359', 'connect')
             #ps.network_event('load_increase', 'B9', 'connect')
-            # ps.network_event('line', 'L3359-5101-1', 'disconnect')
+            #ps.network_event('line', 'L3359-5101-1', 'disconnect')
+            ps.network_event('line', 'L3100-3200-1', 'disconnect')
             # Load change doesnt care about connect or disconnect, the sign on the value (MW) is whats interesting
             #ps.network_event('load_change', 'L3359-1', 'connect', value=100)
-
-        if t > 2.02 and event_flag2:
+        if t >  t_end + 2.02 and event_flag2:
             event_flag2 = False
+            ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+            ps_lin.linearize(x0=x)
+            dps_plt.plot_eigs(ps_lin.eigs)
             #ps.network_event('load_change', 'L3359-1', 'connect', value=-1000)
-            #ps.network_event('line', 'L3359-5101-1', 'connect')
-            ps.network_event('sc', '5610', 'disconnect')
+            ps.network_event('line', 'L3100-3200-1', 'connect')
+            #ps.network_event('sc', '3359', 'disconnect')
+
+        if t > 24 and event_flag_mode:
+            event_flag_mode = False
+            ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+            ps_lin.linearize(x0=x)
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0, 0, 0.7])
+
+        if t > 43 and event_flag_mode2:
+            event_flag_mode2 = False
+            ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+            ps_lin.linearize(x0=x)
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0, 0, 1.0])
+        if t > 65 and event_flag_mode3:
+            event_flag_mode3 = False
+            ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+            ps_lin.linearize(x0=x)
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0,0.7,0])
+        if t > t_end - 0.04 and event_flag_mode4:
+            event_flag_mode4 = False
+            ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+            ps_lin.linearize(x0=x)
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0,1.0,0])
+
         #if t > 3.28: exit()
         # Store result
         result_dict['Global', 't'].append(sol.t)

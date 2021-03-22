@@ -61,7 +61,7 @@ def load():
                 ['L3000-3300', '3000', '3300', 1, 0, 0, 'p.u.', 0.0036, 0.048, 0.03],
                 ['L3000-3300', '3000', '3300', 1, 0, 0, 'p.u.', 0.0054, 0.06, 0.025],
                 ['L3100-3115', '3100', '3115', 1, 0, 0, 'p.u.', 0.018, 0.24, 0.11],
-                ['L3100-3200', '3100', '3200', 1, 0, 0, 'p.u.', 0.024, 0.144, 0.2],
+                ['L3100-3200-1', '3100', '3200', 1, 0, 0, 'p.u.', 0.024, 0.144, 0.2],
                 ['L3100-3200', '3100', '3200', 1, 0, 0, 'p.u.', 0.024, 0.144, 0.2],
                 ['L3100-3200', '3100', '3200', 1, 0, 0, 'p.u.', 0.024, 0.144, 0.2],
                 ['L3100-3249', '3100', '3249', 1, 0, 0, 'p.u.', 0.018, 0.258, 0.16],
@@ -269,8 +269,8 @@ def load():
         'hvdc_ctrl': { # GEN1 and GEN2 are new. These are defining which generators to do the d-q transformation based upon
             'HVDC_WASH_LEAD_LAG': [
                 [      'name',    'hvdc',    'bus1',     'bus2',    'K'],
-                #['HVDC_CTRL1',   'HVDC1',    '7100',     '3115',    10],
-                ['HVDC_CTRL1', 'HVDC1', '3020', '7020', 2],
+                #['HVDC_CTRL1', 'HVDC1', '3020', '7020', 5], # should use this otherwise
+                ['HVDC_CTRL1', 'HVDC1', '7000', '6100', -1.5], # for causing the interference thing, maybe it only is present with old AVR-settings
             ],
             #'HVDC_PROP_CTRL': [
             #    ['name', 'hvdc', 'bus1', 'bus2', 'K'],
@@ -344,6 +344,7 @@ def load():
             ]
         },
 
+        # This is the one being used currently
         'gov': {
             'HYGOV': [  # Fill in values according to initial
                 ['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_2', 'T_3', 'T_4', 'P_m0', 'T_w'],
@@ -361,6 +362,7 @@ def load():
             ]
         },
 
+        # This is the one being used currently
         'avr': {
             'SEXS': [
                 ['name', 'gen', 'K', 'T_a', 'T_b', 'T_e', 'E_min', 'E_max'],
