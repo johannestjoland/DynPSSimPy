@@ -48,11 +48,11 @@ def plot_eigs(eigs):
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-def plot_eigs_2(eigs, ax, fig, col):
+def plot_eigs_2(eigs, ax, fig, col, label=''):
     """
     Same as the one above, but can plot several things in one
     """
-    sc = ax.scatter(eigs.real, eigs.imag, color = col)
+    sc = ax.scatter(eigs.real, eigs.imag, color = col, label=label)
 
     ax.plot([0, -10], [0, 199.75], linestyle='dotted', color='red')  # 5%
     ax.plot([0, -10], [0, 99.4987], linestyle='dotted', color='black') # 10%, demping: Re/sqrt(Re^2+Im^2)

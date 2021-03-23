@@ -79,8 +79,8 @@ if __name__ == '__main__':
     ps.init_dyn_sim()
 
     # Solver
-    t_end = 100
-    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=10e-3)
+    t_end = 180
+    sol = dps_uf.ModifiedEuler(ps.ode_fun, 0, ps.x0, t_end, max_step=30e-3)
 
     t = 0
     result_dict = defaultdict(list)
@@ -105,7 +105,13 @@ if __name__ == '__main__':
     # Perform system linearization
     ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
     ps_lin.linearize()
-    dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[1, 0, 0])
+    dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[1, 0, 0], label='t={}'.format(t))
+
+    number_of_mode_plots = 37
+    mode_flags = [True]*number_of_mode_plots # 25 seconds, first time this oscillation occurs
+    mode_times = np.arange(0, number_of_mode_plots, 1)
+    current_mode_time_idx = 0
+    fig_cycle, ax_cycle = plt.subplots(1)
     while t < t_end:
         sys.stdout.write("\r%d%%" % (t/(t_end)*100))
 
@@ -132,27 +138,36 @@ if __name__ == '__main__':
             ps.network_event('line', 'L3100-3200-1', 'connect')
             #ps.network_event('sc', '3359', 'disconnect')
 
-        if t > 24 and event_flag_mode:
+        if t > 25 and event_flag_mode:
             event_flag_mode = False
             ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
             ps_lin.linearize(x0=x)
-            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0, 0, 0.7])
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0, 0, 0.7], label='t={}'.format(t))
 
-        if t > 43 and event_flag_mode2:
+        if t > 44 and event_flag_mode2:
             event_flag_mode2 = False
             ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
             ps_lin.linearize(x0=x)
-            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0, 0, 1.0])
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0, 0, 1.0], label='t={}'.format(t))
         if t > 65 and event_flag_mode3:
             event_flag_mode3 = False
             ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
             ps_lin.linearize(x0=x)
-            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0,0.7,0])
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0,0.7,0], label='t={}'.format(t))
         if t > t_end - 0.04 and event_flag_mode4:
             event_flag_mode4 = False
             ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
             ps_lin.linearize(x0=x)
-            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0,1.0,0])
+            dps_plt.plot_eigs_2(ps_lin.eigs, ax_mode, fig_mode, col=[0,0.0,0], label='t={}'.format(t))
+
+        if True: # Plotting the eigenvalues towards the end of simulation for each second
+            if current_mode_time_idx < len(mode_flags):
+                if t > mode_times[current_mode_time_idx]+t_end - 50 and mode_flags[current_mode_time_idx]:
+                    mode_flags[current_mode_time_idx] = False
+                    ps_lin = dps_mdl.PowerSystemModelLinearization(ps)
+                    ps_lin.linearize(x0=x)
+                    dps_plt.plot_eigs_2(ps_lin.eigs, ax_cycle, fig_cycle, col=[0,0, current_mode_time_idx/number_of_mode_plots], label='t={:.1f}'.format(t))
+                    current_mode_time_idx += 1
 
         #if t > 3.28: exit()
         # Store result
@@ -175,6 +190,8 @@ if __name__ == '__main__':
 
     print('\nSimulation completed in {:.2f} seconds.'.format(time.time() - t_0))
 
+    ax_mode.legend()
+    ax_cycle.legend()
     index = pd.MultiIndex.from_tuples(result_dict)
     result = pd.DataFrame(result_dict, columns=index)
 

@@ -63,6 +63,7 @@ if __name__ == '__main__':
     y8 = np.exp(-0.4193*time/10)*np.sin(2.34016*time)
     y9 = np.exp(-0.00216*time/10)*np.sin(1.7245*time)
     y10 = np.exp(-0.25164*time/10)*np.sin(2.4715*time)
+    y11 = np.exp(0.14418/10*time)*np.sin(2.41123*time)
     #ax33.plot(time, y1, color='black')
     #ax33.plot(time, y2, color='blue')
     #ax33.plot(time, y3, color='r')

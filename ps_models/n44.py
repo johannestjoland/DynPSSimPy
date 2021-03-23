@@ -270,7 +270,7 @@ def load():
             'HVDC_WASH_LEAD_LAG': [
                 [      'name',    'hvdc',    'bus1',     'bus2',    'K'],
                 #['HVDC_CTRL1', 'HVDC1', '3020', '7020', 5], # should use this otherwise
-                ['HVDC_CTRL1', 'HVDC1', '7000', '6100', -1.5], # for causing the interference thing, maybe it only is present with old AVR-settings
+                ['HVDC_CTRL1', 'HVDC1', '7000', '6100', -3.0], # for causing the interference thing, maybe it only is present with old AVR-settings
             ],
             #'HVDC_PROP_CTRL': [
             #    ['name', 'hvdc', 'bus1', 'bus2', 'K'],
